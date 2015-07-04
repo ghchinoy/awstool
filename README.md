@@ -52,7 +52,7 @@ aws ec2 delete-security-group --group-id sg-96cdb6fe --dry-run
  ```
 
 
- ## Development Notes
+## Development Notes
 
  This golang project uses [gb](http://getgb.io) project structure.
 
