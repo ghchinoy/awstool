@@ -16,12 +16,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+// Primary struct
 type SecGroup struct {
 	Id            string
 	SecurityGroup ec2.SecurityGroup
 	Instances     []ec2.Instance
 }
 
+// Sort implementation for by ec2 instances
 type ByInstanceCount []SecGroup
 
 func (g ByInstanceCount) Len() int {
@@ -34,6 +36,7 @@ func (g ByInstanceCount) Less(i, j int) bool {
 	return len(g[i].Instances) > len(g[j].Instances)
 }
 
+// Sort implementation for by secgroup rules
 type ByIPPort []ec2.IPPermission
 
 func (p ByIPPort) Len() int {
@@ -93,8 +96,7 @@ func main() {
 		}
 	}
 
-	// this isn't working?
-	// something to do with iterating over map vs SecGroup array in next step
+	// place array into named array struct for sorting purposes
 	var groups []SecGroup
 	for _, e := range grpmap {
 		groups = append(groups, e)
@@ -149,6 +151,7 @@ func main() {
 
 }
 
+// convenience method for concatenation, could probably do this more clever
 func listInstances(instances []ec2.Instance) (string, error) {
 	var iList string
 	if len(instances) == 0 {
@@ -164,6 +167,7 @@ func listInstances(instances []ec2.Instance) (string, error) {
 	return iList, nil
 }
 
+// convenience method for concatenation, could probably do this more clever
 func listSecurityGroups(groups []*ec2.GroupIdentifier) (string, error) {
 
 	var groupList string
