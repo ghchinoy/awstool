@@ -50,3 +50,10 @@ aws ec2 delete-security-group --group-id sg-094e6562 --dry-run
 aws ec2 delete-security-group --group-id sg-d7406bbc --dry-run
 aws ec2 delete-security-group --group-id sg-96cdb6fe --dry-run
  ```
+
+
+ ## Development Notes
+
+ This golang project uses [gb](http://getgb.io) project structure.
+
+ Cross-compilation by gox
