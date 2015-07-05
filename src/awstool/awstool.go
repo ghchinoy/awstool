@@ -7,6 +7,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"sort"
@@ -49,14 +50,28 @@ func (p ByIPPort) Less(i, j int) bool {
 	return *p[i].FromPort < *p[j].FromPort
 }
 
+var region string
+
+func init() {
+
+	regionFlag := flag.String("region", "us-east-1", "AWS Region")
+	flag.Parse()
+
+	region = string(*regionFlag)
+
+}
+
 func main() {
 
-	aws.DefaultConfig.Region = "us-east-1"
+	aws.DefaultConfig.Region = region
 
+	// AWS EC2 API Service
 	svc := ec2.New(nil)
+
+	// Security Groups
 	params := &ec2.DescribeSecurityGroupsInput{}
 
-	runResult, err := svc.DescribeSecurityGroups(params)
+	securityGroupsResult, err := svc.DescribeSecurityGroups(params)
 	if err != nil {
 		log.Println("Can't even", err)
 		return
@@ -64,16 +79,9 @@ func main() {
 
 	log.Println("Obtained security groups")
 
-	grpmap := make(map[string]SecGroup)
-
-	for _, s := range runResult.SecurityGroups {
-		secgrp := SecGroup{SecurityGroup: *s, Id: *s.GroupID}
-		id := *s.GroupID
-		grpmap[id] = secgrp
-	}
-
+	// Describe Instances
 	inParams := &ec2.DescribeInstancesInput{}
-	instanceResult, err := svc.DescribeInstances(inParams)
+	instancesResult, err := svc.DescribeInstances(inParams)
 	if err != nil {
 		log.Println("Can't even", err)
 		return
@@ -81,8 +89,17 @@ func main() {
 
 	log.Println("Obtained instances")
 
-	// Output Instances
-	for _, r := range instanceResult.Reservations {
+	// Create Map of security groups with key GroupID
+	grpmap := make(map[string]SecGroup)
+
+	for _, s := range securityGroupsResult.SecurityGroups {
+		secgrp := SecGroup{SecurityGroup: *s, Id: *s.GroupID}
+		id := *s.GroupID
+		grpmap[id] = secgrp
+	}
+
+	// Associate Instances with Security Groups
+	for _, r := range instancesResult.Reservations {
 		//fmt.Printf("Reservation %s, owner: %s\n", *r.ReservationID, *r.OwnerID)
 		for _, i := range r.Instances {
 			for _, s := range i.SecurityGroups {
