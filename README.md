@@ -2,7 +2,7 @@
 
 This app uses the [AWS Go SDK](https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Credentials) to perform some basic operations.
 
-Currently, it queries existing security groups, listing the total number of Incoming IP Permissions, Outgoing IP Permissions and the EC2 Instances using them. Additionally, it outputs an AWS CLI to delete unused security groups.
+Currently, this queries existing security groups, listing the total number of Incoming IP Permissions, Outgoing IP Permissions and the EC2 Instances using them. Additionally, it outputs an AWS CLI to delete unused security groups.
 
 This can be run with the [shared AWS credentials file](https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Credentials) (more info at [configuring the aws cli](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html))
 
