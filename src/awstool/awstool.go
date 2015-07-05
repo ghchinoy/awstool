@@ -53,19 +53,66 @@ func (p ByIPPort) Less(i, j int) bool {
 var region string
 
 func init() {
-
 	regionFlag := flag.String("region", "us-east-1", "AWS Region")
 	flag.Parse()
-
 	region = string(*regionFlag)
-
 }
 
 func main() {
 
+	log.Printf("AWS Region: %s", region)
 	aws.DefaultConfig.Region = region
 
-	// AWS EC2 API Service
+	// instances
+	// security-groups
+	//    with-delete
+
+	deletestatements := false
+
+	if contains(flag.Args(), "instances") {
+		log.Println("Obtaining instances")
+		// Describe Instances
+		instancesResult, err := getInstances()
+		if err != nil {
+			log.Println("Can't even", err)
+			return
+		}
+		log.Println("Obtained instances", len(instancesResult.Reservations))
+		outputInstances(instancesResult)
+
+	} else if contains(flag.Args(), "security-groups") {
+		log.Print("Obtaining security groups")
+		if contains(flag.Args(), "with-delete") {
+			log.Println(" with delete statements")
+			deletestatements = true
+		}
+
+		groups, err := getSecurityGroupsWithInstances()
+		if err != nil {
+			log.Println("Can't even", err)
+			return
+		}
+		outputSecurityGroups(groups)
+
+		if deletestatements {
+			outputSecurityGroupsDeleteStatements(groups)
+		}
+
+	}
+
+}
+
+func getSecurityGroupsWithInstances() ([]SecGroup, error) {
+
+	var groups []SecGroup
+
+	grpmap := make(map[string]SecGroup)
+
+	instancesResult, err := getInstances()
+	if err != nil {
+		return groups, err
+	}
+
 	svc := ec2.New(nil)
 
 	// Security Groups
@@ -74,23 +121,10 @@ func main() {
 	securityGroupsResult, err := svc.DescribeSecurityGroups(params)
 	if err != nil {
 		log.Println("Can't even", err)
-		return
+		return groups, err
 	}
 
 	log.Println("Obtained security groups")
-
-	// Describe Instances
-	inParams := &ec2.DescribeInstancesInput{}
-	instancesResult, err := svc.DescribeInstances(inParams)
-	if err != nil {
-		log.Println("Can't even", err)
-		return
-	}
-
-	log.Println("Obtained instances")
-
-	// Create Map of security groups with key GroupID
-	grpmap := make(map[string]SecGroup)
 
 	for _, s := range securityGroupsResult.SecurityGroups {
 		secgrp := SecGroup{SecurityGroup: *s, Id: *s.GroupID}
@@ -100,26 +134,28 @@ func main() {
 
 	// Associate Instances with Security Groups
 	for _, r := range instancesResult.Reservations {
-		//fmt.Printf("Reservation %s, owner: %s\n", *r.ReservationID, *r.OwnerID)
 		for _, i := range r.Instances {
 			for _, s := range i.SecurityGroups {
 				secgrp := grpmap[*s.GroupID]
 				secgrp.Instances = append(secgrp.Instances, *i)
-				//fmt.Printf("%s %v\n", secgrp.Id, len(secgrp.Instances))
 				grpmap[*s.GroupID] = secgrp
 			}
-			//securityGroupsList, _ := listSecurityGroups(i.SecurityGroups)
-			//fmt.Printf("%s [%s]\n", *i.InstanceID, securityGroupsList)
+
 		}
 	}
 
 	// place array into named array struct for sorting purposes
-	var groups []SecGroup
+	//var groups []SecGroup
 	for _, e := range grpmap {
 		groups = append(groups, e)
 	}
 	sort.Sort(ByInstanceCount(groups))
 
+	return groups, nil
+
+}
+
+func outputSecurityGroups(groups []SecGroup) {
 	// Output Security Groups
 	fmt.Printf("%12s %20s %3s %3s %3s\n", "id", "name", "in", "out", "i")
 	for _, v := range groups {
@@ -157,7 +193,9 @@ func main() {
 			fmt.Printf("\tinstances: %s\n", instances)
 		}
 	}
+}
 
+func outputSecurityGroupsDeleteStatements(groups []SecGroup) {
 	log.Println("AWS CLI to remove unused groups")
 	fmt.Println()
 	for _, d := range groups {
@@ -165,7 +203,42 @@ func main() {
 			fmt.Printf("aws ec2 delete-security-group --group-id %s --dry-run\n", *d.SecurityGroup.GroupID)
 		}
 	}
+}
 
+func getInstances() (ec2.DescribeInstancesOutput, error) {
+
+	var instancesResult *ec2.DescribeInstancesOutput
+
+	svc := ec2.New(nil)
+	inParams := &ec2.DescribeInstancesInput{}
+	instancesResult, err := svc.DescribeInstances(inParams)
+	if err != nil {
+		log.Println("Can't even", err)
+		return *instancesResult, err
+	}
+
+	return *instancesResult, nil
+
+}
+
+func outputInstances(instancesResult ec2.DescribeInstancesOutput) {
+	for _, r := range instancesResult.Reservations {
+		fmt.Printf("Reservation %s, owner: %s\n", *r.ReservationID, *r.OwnerID)
+		for _, i := range r.Instances {
+			securityGroupsList, _ := listSecurityGroups(i.SecurityGroups)
+			fmt.Printf("%s [%s]\n", *i.InstanceID, securityGroupsList)
+		}
+	}
+}
+
+func contains(array []string, item string) bool {
+	set := make(map[string]struct{}, len(array))
+	for _, s := range array {
+		set[s] = struct{}{}
+	}
+
+	_, ok := set[item]
+	return ok
 }
 
 // convenience method for concatenation, could probably do this more clever
